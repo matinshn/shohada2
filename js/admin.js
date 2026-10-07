@@ -9,6 +9,7 @@ let allCampaigns = [];
 let allPayments = [];
 let allNotifications = [];
 let activeSection = 'dashboard';
+let activeNotifCategory = 'users';
 let editingCampaignId = null;
 let editingPaymentId = null;
 let activeDatepickerInput = null;
@@ -76,6 +77,24 @@ async function reloadNotifications() {
   }
 }
 
+function getNotificationCategory(n) {
+  if (!n) return 'site';
+  if (n.category === 'users' || n.category === 'admin' || n.category === 'site') {
+    return n.category;
+  }
+  const type = String(n.type || '').toLowerCase();
+  if (type.includes('user') || type === 'user_approval' || type === 'user_visibility' || type === 'user_status') {
+    return 'users';
+  }
+  if (type.includes('terms') || type.includes('setting') || type.includes('gateway') || type.includes('admin') || type.includes('system') || type === 'campaign_status' || type.includes('log') || type.includes('backup') || type.includes('auth')) {
+    return 'admin';
+  }
+  if (type.includes('pay') || type.includes('camp') || type.includes('site') || type.includes('trans')) {
+    return 'site';
+  }
+  return 'site';
+}
+
 function renderNotificationsDropdown(unreadCount = 0) {
   const badge = document.getElementById('notifBadgeCount');
   const headerTag = document.getElementById('notifUnreadHeaderTag');
@@ -96,20 +115,48 @@ function renderNotificationsDropdown(unreadCount = 0) {
     }
   }
 
-  if (!allNotifications || allNotifications.length === 0) {
+  // بروزرسانی شمارنده‌های ۳ تب دسته‌بندی اعلان‌ها
+  const userNotifs = (allNotifications || []).filter(n => getNotificationCategory(n) === 'users');
+  const adminNotifs = (allNotifications || []).filter(n => getNotificationCategory(n) === 'admin');
+  const siteNotifs = (allNotifications || []).filter(n => getNotificationCategory(n) === 'site');
+
+  const badgeUsers = document.getElementById('notifCatBadgeUsers');
+  const badgeAdmin = document.getElementById('notifCatBadgeAdmin');
+  const badgeSite = document.getElementById('notifCatBadgeSite');
+
+  if (badgeUsers) badgeUsers.textContent = window.CampaignDB.toPersianDigits(userNotifs.length);
+  if (badgeAdmin) badgeAdmin.textContent = window.CampaignDB.toPersianDigits(adminNotifs.length);
+  if (badgeSite) badgeSite.textContent = window.CampaignDB.toPersianDigits(siteNotifs.length);
+
+  // بروزرسانی وضعیت فعال بودن تب‌های ۳ گانه
+  const catTabs = document.querySelectorAll('#notifCategoryTabs .notif-cat-tab-btn');
+  catTabs.forEach(t => {
+    t.classList.toggle('active', t.getAttribute('data-notif-category') === activeNotifCategory);
+  });
+
+  // فیلتر کردن اعلان‌ها بر اساس تب انتخابی (کاربران، پنل مدیریت، سایت)
+  const filteredNotifications = (allNotifications || []).filter(n => getNotificationCategory(n) === activeNotifCategory);
+
+  if (!filteredNotifications || filteredNotifications.length === 0) {
+    const categoryTitles = {
+      users: 'کاربران',
+      admin: 'پنل مدیریت',
+      site: 'سایت'
+    };
+    const catName = categoryTitles[activeNotifCategory] || '';
     listEl.innerHTML = `
       <div class="notif-empty-state">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin: 0 auto 8px; opacity: 0.5;">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
         </svg>
-        <div>در حال حاضر هیچ اعلانی وجود ندارد.</div>
+        <div>در حال حاضر هیچ اعلانی در بخش «${catName}» وجود ندارد.</div>
       </div>
     `;
     return;
   }
 
-  listEl.innerHTML = allNotifications.map(n => {
+  listEl.innerHTML = filteredNotifications.map(n => {
     let iconClass = 'notif-icon-system';
     let iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
 
@@ -227,6 +274,21 @@ function setupNotificationEvents() {
   const dropdown = document.getElementById('adminNotificationsDropdown');
   const markAllBtn = document.getElementById('btnMarkAllNotifsRead');
 
+  // اتصال رویداد تب‌های ۳ گانه اعلان‌ها (کاربران، پنل مدیریت، سایت)
+  const catTabs = document.querySelectorAll('#notifCategoryTabs .notif-cat-tab-btn');
+  catTabs.forEach(tab => {
+    tab.onclick = (e) => {
+      e.stopPropagation();
+      const cat = tab.getAttribute('data-notif-category');
+      if (cat) {
+        activeNotifCategory = cat;
+        catTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-notif-category') === cat));
+        const unreadCount = (allNotifications || []).filter(n => !n.is_read).length;
+        renderNotificationsDropdown(unreadCount);
+      }
+    };
+  });
+
   if (toggleBtn && dropdown) {
     toggleBtn.onclick = (e) => {
       e.stopPropagation();
@@ -256,44 +318,110 @@ function setupNotificationEvents() {
   }
 }
 
-function showAdminToast(message, type = 'info') {
-  let container = document.getElementById('adminToastContainer');
+/**
+ * پاپ‌آپ وضعیت عملیات مدیریت:
+ * - عملیات موفق: پاپ‌آپ سبز با عنوان "عملیات موفقیت آمیز بود"
+ * - عملیات ناموفق: پاپ‌آپ قرمز با عنوان "خطا در عملیات"
+ */
+function showAdminPopup(title, message, type = 'success') {
+  let container = document.getElementById('adminPopupContainer');
   if (!container) {
     container = document.createElement('div');
-    container.id = 'adminToastContainer';
-    container.className = 'toast-container';
+    container.id = 'adminPopupContainer';
+    container.className = 'admin-popup-container';
     document.body.appendChild(container);
   }
-  const toast = document.createElement('div');
-  toast.className = `toast-pill toast-${type}`;
+
+  const popup = document.createElement('div');
+  popup.className = `admin-action-popup popup-${type}`;
+
   let iconSvg = '';
+  let badgeClass = 'badge-info';
+
   if (type === 'success') {
-    iconSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+    badgeClass = 'badge-success';
+    iconSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   } else if (type === 'error') {
-    iconSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    badgeClass = 'badge-error';
+    iconSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
   } else {
-    iconSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+    badgeClass = 'badge-info';
+    iconSvg = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
   }
-  toast.innerHTML = `${iconSvg}<span>${message}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
+
+  // تنظیم عناوین دقیق درخواستی
+  let finalTitle = title;
+  let finalMessage = message;
+
+  if (type === 'success') {
+    finalTitle = 'عملیات موفقیت آمیز بود';
+    if (title && title !== 'success' && title !== 'عملیات موفقیت آمیز بود' && !message) {
+      finalMessage = title;
+    } else if (!finalMessage) {
+      finalMessage = 'عملیات با موفقیت انجام شد.';
+    }
+  } else if (type === 'error') {
+    finalTitle = 'خطا در عملیات';
+    if (title && title !== 'error' && title !== 'خطا در عملیات' && !message) {
+      finalMessage = title;
+    } else if (!finalMessage) {
+      finalMessage = 'در انجام عملیات خطایی رخ داده است.';
+    }
+  } else if (!finalTitle) {
+    finalTitle = 'پیام سیستم';
+  }
+
+  popup.innerHTML = `
+    <div class="popup-icon-badge ${badgeClass}">
+      ${iconSvg}
+    </div>
+    <div class="popup-text-content">
+      <div class="popup-title">${finalTitle}</div>
+      ${finalMessage ? `<div class="popup-message">${finalMessage}</div>` : ''}
+    </div>
+    <button type="button" class="btn-popup-dismiss" aria-label="بستن">×</button>
+  `;
+
+  let isDismissed = false;
+  const dismiss = () => {
+    if (isDismissed) return;
+    isDismissed = true;
+    popup.classList.add('hide');
+    setTimeout(() => {
+      if (popup.parentNode) popup.parentNode.removeChild(popup);
+    }, 280);
+  };
+
+  const dismissBtn = popup.querySelector('.btn-popup-dismiss');
+  if (dismissBtn) {
+    dismissBtn.onclick = (e) => {
+      e.stopPropagation();
+      dismiss();
+    };
+  }
+
+  container.appendChild(popup);
+  setTimeout(dismiss, 4500);
 }
+
+function showAdminToast(message, type = 'info') {
+  if (type === 'success') {
+    showAdminPopup('عملیات موفقیت آمیز بود', message || 'عملیات با موفقیت انجام شد.', 'success');
+  } else if (type === 'error') {
+    showAdminPopup('خطا در عملیات', message || 'در انجام عملیات خطایی رخ داده است.', 'error');
+  } else {
+    showAdminPopup('پیام سیستم', message, 'info');
+  }
+}
+
+window.showAdminPopup = showAdminPopup;
+window.showAdminToast = showAdminToast;
 
 let selectedAddCampaignFile = null;
 let selectedEditCampaignFile = null;
 
 async function initAdminPanel() {
   try {
-    const configNotice = document.getElementById('loginConfigNotice');
-    if (configNotice) {
-      configNotice.style.display = 'block';
-    }
-
     const isAuth = await window.AdminAuth.isAuthenticatedAdmin();
     if (!isAuth) {
       showLoginView();
@@ -338,7 +466,7 @@ async function updateAdminUserInfo() {
   const emailEl = document.getElementById('adminLoggedInEmail') || document.getElementById('adminLoggedInPhone');
   if (emailEl) {
     const email = await window.AdminAuth.getAdminEmail();
-    emailEl.textContent = email || 'admin@example.com';
+    emailEl.textContent = email || 'Matinshariati1404@gmail.com';
   }
 }
 

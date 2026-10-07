@@ -158,7 +158,7 @@ const mockDb: {
       tracking_code: 'POY-334190',
       description: 'سلامتی بیماران',
       is_anonymous: false,
-      is_approved: false,
+      is_approved: true,
       status: 'successful',
       gateway: 'test_gateway',
       transaction_id: 'TXN-87612390',
@@ -175,6 +175,7 @@ const mockDb: {
       title: 'مشارکت جدید در پویش',
       description: 'امید احمدی با ۱۰ سهم (۵۰۰,۰۰۰ تومان) به صورت گمنام در پویش اطعام غدیر مشارکت نمود.',
       type: 'payment',
+      category: 'site',
       is_read: false,
       reversible: false,
       undone: false,
@@ -186,6 +187,7 @@ const mockDb: {
       title: 'مشارکت‌کننده جدید',
       description: 'فاطمه حسینی با پرداخت ۱۰۰,۰۰۰ تومان در پویش مشارکت نمود و در لیست کاربران ثبت شد.',
       type: 'user',
+      category: 'users',
       is_read: false,
       reversible: false,
       undone: false,
@@ -197,6 +199,7 @@ const mockDb: {
       title: 'تغییر وضعیت پویش نذر فاطمیه',
       description: 'وضعیت پویش از «به زودی» به «فعال» تغییر داده شد.',
       type: 'campaign_status',
+      category: 'admin',
       is_read: true,
       reversible: true,
       undone: false,
@@ -207,6 +210,42 @@ const mockDb: {
         new_status: 'active'
       },
       created_at: new Date(Date.now() - 86400000).toISOString()
+    },
+    {
+      id: 'notif-4',
+      title: 'بروزرسانی قوانین و مقررات',
+      description: 'متن قوانین و مقررات پویش توسط مدیریت ذخیره و منتشر شد.',
+      type: 'terms_update',
+      category: 'admin',
+      is_read: false,
+      reversible: false,
+      undone: false,
+      undo_data: null,
+      created_at: new Date(Date.now() - 3600000 * 8).toISOString()
+    },
+    {
+      id: 'notif-5',
+      title: 'عضویت مشارکت‌کننده جدید',
+      description: 'محمد صادقی با ثبت ۴ سهم به جمع همراهان پویش پیوست.',
+      type: 'user',
+      category: 'users',
+      is_read: true,
+      reversible: false,
+      undone: false,
+      undo_data: null,
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString()
+    },
+    {
+      id: 'notif-6',
+      title: 'واریز آنلاین از درگاه شاپرک',
+      description: 'تراکنش TXN-98432104 در درگاه آنلاین با موفقیت تایید شد.',
+      type: 'payment',
+      category: 'site',
+      is_read: true,
+      reversible: false,
+      undone: false,
+      undo_data: null,
+      created_at: new Date(Date.now() - 86400000 * 2).toISOString()
     }
   ],
   audit_logs: [
@@ -251,13 +290,8 @@ const mockDb: {
   admins: [
     {
       id: 1,
-      email: 'admin@example.com',
-      password: 'admin123456'
-    },
-    {
-      id: 2,
-      email: 'matinshariati1404@gmail.com',
-      password: 'admin123456'
+      email: 'Matinshariati1404@gmail.com',
+      password: '12345678'
     }
   ]
 };
@@ -274,12 +308,21 @@ function recordAuditLog(action_type: string, actor: string, target: string, desc
   });
 }
 
-function createNotification(title: string, description: string, type = 'info', reversible = false, undo_data: any = null) {
+function createNotification(title: string, description: string, type = 'info', reversible = false, undo_data: any = null, category = '') {
+  let cat = category;
+  if (!cat) {
+    if (type === 'user' || type.startsWith('user')) cat = 'users';
+    else if (type === 'terms_update' || type === 'campaign_status' || type === 'settings' || type === 'system' || type === 'admin') cat = 'admin';
+    else if (type === 'payment' || type === 'campaign') cat = 'site';
+    else cat = 'site';
+  }
+
   mockDb.notifications.unshift({
     id: 'notif-' + Date.now(),
     title,
     description,
     type,
+    category: cat,
     is_read: false,
     reversible,
     undone: false,
@@ -432,7 +475,7 @@ function setupServerMiddlewares(server: any) {
 
           const { email, password } = body;
           const found = mockDb.admins.find(a => a.email.toLowerCase() === (email || '').toLowerCase().trim());
-          if (found && (password === found.password || password === 'admin123456')) {
+          if (found && (password === found.password || password === '12345678')) {
             const token = 'mock_token_' + encodeURIComponent(found.email);
             recordAuditLog('ورود مدیر', found.email, 'سیستم', 'ورود موفق به پنل مدیریت');
             res.end(JSON.stringify({
@@ -598,16 +641,20 @@ function setupServerMiddlewares(server: any) {
             if (campaignId) {
               filtered = filtered.filter((p: any) => String(p.campaign_id) === String(campaignId));
             }
-            // نام گمنام را ماسک کرده و هیچ اطلاعات خصوصی (مانند تلفن، شناسه‌ها و...) ارسال نمی‌کنیم
+            // نام گمنام را ماسک کرده و تمام مشارکت‌کنندگان موفق را برای نمایش در سایت ارسال می‌کنیم
             const safeList = filtered.map((p: any) => {
               const user = mockDb.users.find((u: any) => (p.user_id && u.id === p.user_id) || (p.phone && u.phone === p.phone));
               const isAnon = p.is_anonymous || (user && user.is_anonymous) || p.payer_name === 'گمنام';
               const displayName = isAnon ? 'گمنام' : (p.payer_name || 'مشارکت‌کننده');
               return {
+                id: p.id,
                 payer_name: displayName,
                 shares: p.shares,
                 amount: p.amount,
-                created_at: p.created_at
+                status: p.status || 'successful',
+                is_approved: true,
+                is_anonymous: isAnon,
+                created_at: p.created_at || p.verified_at || p.paid_at || new Date().toISOString()
               };
             });
             res.end(JSON.stringify({ success: true, data: safeList }));
@@ -1067,7 +1114,8 @@ function setupServerMiddlewares(server: any) {
 
           const finalTracking = tracking_code || ('POY-' + Math.floor(100000 + Math.random() * 900000));
           const authority = 'AUTH_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
-          const redirectUrl = `/gateway-sim.html?track=${encodeURIComponent(finalTracking)}&amount=${amount || 0}&authority=${authority}&gateway=${encodeURIComponent(gateway || 'test_gateway')}&callback=${encodeURIComponent(callback_url || '/')}`;
+          const activeGw = gateway || mockDb.settings.active_gateway || 'test_gateway';
+          const redirectUrl = `/gateway-sim.html?track=${encodeURIComponent(finalTracking)}&amount=${amount || 0}&authority=${authority}&gateway=${encodeURIComponent(activeGw)}&callback=${encodeURIComponent(callback_url || '/')}`;
 
           mockDb.payments.unshift({
             id: 'pay-' + Date.now(),
@@ -1081,7 +1129,7 @@ function setupServerMiddlewares(server: any) {
             is_anonymous: !!is_anonymous,
             is_approved: false,
             status: 'pending',
-            gateway: gateway || 'test_gateway',
+            gateway: activeGw,
             transaction_id: '',
             authority_token: authority,
             verified_at: null,
@@ -1094,7 +1142,7 @@ function setupServerMiddlewares(server: any) {
             success: true,
             authority,
             redirect_url: redirectUrl,
-            gateway: gateway || 'test_gateway'
+            gateway: activeGw
           }));
           return;
         } catch (e: any) {
@@ -1155,6 +1203,7 @@ function setupServerMiddlewares(server: any) {
           const verifiedAt = new Date().toISOString();
           if (payment) {
             payment.status = 'successful';
+            payment.is_approved = true;
             payment.transaction_id = txnId;
             payment.verified_at = verifiedAt;
             payment.paid_at = verifiedAt;
@@ -1217,8 +1266,14 @@ export default defineConfig(() => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      allowedHosts: true,
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+    preview: {
+      port: 3000,
+      host: '0.0.0.0',
+      allowedHosts: true,
     },
     plugins: [
       {

@@ -242,7 +242,7 @@ async function savePaymentSettings(settings) {
   return settings;
 }
 
-async function initiateGatewayPayment({ campaign_id, payer_name, phone, shares, amount, description, is_anonymous }) {
+async function initiateGatewayPayment({ campaign_id, payer_name, phone, shares, amount, description, is_anonymous, gateway }) {
   if (!campaign_id) throw new Error('شناسه پویش الزامی است.');
   if (amount <= 0) throw new Error('مبلغ پرداخت نامعتبر است.');
   let cleanName = (payer_name || '').trim();
@@ -263,6 +263,7 @@ async function initiateGatewayPayment({ campaign_id, payer_name, phone, shares, 
       amount: parseInt(toEnglishDigits(amount), 10) || 0,
       description: (description || '').trim(),
       is_anonymous: !!is_anonymous,
+      gateway: gateway || undefined,
       tracking_code: trackingCode,
       callback_url: callbackUrl
     })

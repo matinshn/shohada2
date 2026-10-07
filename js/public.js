@@ -7,7 +7,25 @@
 
 let currentCampaign = null;
 let currentPayments = [];
+let currentSettings = null;
 let selectedShares = 1;
+
+function getGatewayDisplayName(gatewayKey) {
+  const map = {
+    test_gateway: 'شاپرک',
+    shaparak: 'شاپرک',
+    zarinpal: 'زرین‌پال',
+    idpay: 'آیدی پی',
+    zibal: 'زیبال',
+    nextpay: 'نکست پی',
+    behpardakht: 'به‌پرداخت ملت',
+    mellat: 'به‌پرداخت ملت',
+    saman: 'سامان کیش',
+    parsian: 'تجارت الکترونیک پارسیان',
+    pasargad: 'پاسارگاد'
+  };
+  return map[gatewayKey] || gatewayKey || 'شاپرک';
+}
 
 function showToast(message, type = 'info') {
   let container = document.getElementById('toastContainer');
@@ -51,6 +69,12 @@ async function initPublicPage() {
     if (!currentCampaign) {
       renderEmptyState(container);
       return;
+    }
+
+    try {
+      currentSettings = await window.CampaignDB.getPaymentSettings();
+    } catch (e) {
+      console.warn('امکان بارگذاری تنظیمات درگاه وجود نداشت:', e);
     }
 
     currentPayments = await window.CampaignDB.getPayments(currentCampaign.id);
@@ -315,8 +339,11 @@ function renderActiveCampaignLayout(container) {
           </div>
           
           <button type="button" id="btnOpenParticipate" class="btn-donate-cta">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="8" r="6"/>
+              <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
+              <path d="M7 6h1v4"/>
+              <path d="m16.71 13.88.7.71-2.82 2.82"/>
             </svg>
             <span>مشارکت در پویش</span>
           </button>
@@ -327,7 +354,7 @@ function renderActiveCampaignLayout(container) {
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <span>پیگیری واریز</span>
+              <span>پیگیری نذورات</span>
             </button>
             <button type="button" id="btnOpenRulesModal" class="btn-track-page-action" style="margin-top: 0;">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -336,7 +363,7 @@ function renderActiveCampaignLayout(container) {
                 <line x1="16" y1="13" x2="8" y2="13"/>
                 <line x1="16" y1="17" x2="8" y2="17"/>
               </svg>
-              <span>قوانین و شرایط</span>
+              <span>قوانین و مقررات</span>
             </button>
           </div>
           
@@ -345,7 +372,7 @@ function renderActiveCampaignLayout(container) {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            <span>اتصال امن به درگاه بانکی شاپرک</span>
+            <span>اتصال امن به درگاه بانکی <strong id="trustBadgeGatewayName">${getGatewayDisplayName((currentSettings && currentSettings.active_gateway) || 'test_gateway')}</strong></span>
           </div>
         </div>
         
@@ -480,7 +507,11 @@ function buildOptionalEventDetailsHtml(campaign) {
 }
 
 function buildRecentParticipantsHtml(payments) {
-  const successful = (payments || []).filter(p => (p.status === 'successful' || p.status === 'success') && p.is_approved !== false && p.is_excluded !== true);
+  const successful = (payments || []).filter(p => {
+    if (!p) return false;
+    const isSuccess = !p.status || p.status === 'successful' || p.status === 'success';
+    return isSuccess && p.is_excluded !== true;
+  });
   if (successful.length === 0) {
     return `
       <div class="empty-participants-notice">
@@ -488,7 +519,7 @@ function buildRecentParticipantsHtml(payments) {
       </div>
     `;
   }
-  const sorted = successful.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 8);
+  const sorted = successful.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
   return sorted.map((p) => {
     let rawName = (p.payer_name || '').trim();
     let displayName = rawName;
@@ -750,7 +781,8 @@ function setupEventListeners() {
           shares: selectedShares,
           amount: amount,
           description: description,
-          is_anonymous: isAnonymous
+          is_anonymous: isAnonymous,
+          gateway: (currentSettings && currentSettings.active_gateway) || 'test_gateway'
         });
 
         if (initResult && initResult.redirect_url) {

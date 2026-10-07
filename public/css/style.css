@@ -303,6 +303,8 @@ body {
 .campaign-highlight-tags {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
   gap: 12px;
   padding-top: 18px;
   border-top: 1px solid var(--border-color);
@@ -875,6 +877,10 @@ select,
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-left: 4px;
+  scrollbar-width: thin;
 }
 
 .participant-item-row {

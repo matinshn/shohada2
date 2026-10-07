@@ -176,6 +176,56 @@ body {
 }
 
 /* ==========================================================================
+   پاپ‌آپ بازگشت به صفحه عمومی در بالا سمت چپ صفحه ورود
+   ========================================================================== */
+.login-return-popup {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 99999;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #1e293b;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.86rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  direction: rtl;
+}
+
+.login-return-popup:hover {
+  background: #ffffff;
+  color: #0891b2;
+  border-color: #0891b2;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -4px rgba(8, 145, 178, 0.22), 0 6px 12px -2px rgba(0, 0, 0, 0.06);
+}
+
+.login-return-popup .popup-return-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f0fdfa;
+  color: #0891b2;
+  transition: all 0.2s ease;
+}
+
+.login-return-popup:hover .popup-return-icon {
+  background: #0891b2;
+  color: #ffffff;
+  transform: translateX(-2px);
+}
+
+/* ==========================================================================
    اسکلت اصلی پنل ادمین
    ========================================================================== */
 .admin-shell {
@@ -1719,5 +1769,224 @@ select option:checked {
 }
 .badge-log-status.success { background: #f0fdf4; color: #166534; }
 .badge-log-status.failed { background: #fef2f2; color: #991b1b; }
+
+/* ==========================================================================
+   تب‌های ۳ گانه اعلان‌های مدیریت (کاربران، پنل مدیریت، سایت)
+   ========================================================================== */
+.notif-category-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 6px;
+  gap: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.notif-cat-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.notif-cat-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.6);
+  color: #334155;
+}
+
+.notif-cat-tab-btn.active {
+  background: #ffffff;
+  color: #0891b2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.cat-count-badge {
+  font-size: 0.7rem;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 1px 6px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.notif-cat-tab-btn.active .cat-count-badge {
+  background: #ecfeff;
+  color: #0891b2;
+}
+
+/* ==========================================================================
+   پاپ‌آپ‌های وضعیت عملیات مدیریت (Green Success / Red Error Popups)
+   ========================================================================== */
+.admin-popup-container {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+  max-width: 92vw;
+  width: 440px;
+}
+
+.admin-action-popup {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15), 0 5px 15px rgba(0, 0, 0, 0.07);
+  animation: popupSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.25s ease;
+  direction: rtl;
+  text-align: right;
+  position: relative;
+  border: 1.5px solid transparent;
+}
+
+.admin-action-popup.hide {
+  animation: popupSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popupSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-25px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes popupSlideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.96);
+  }
+}
+
+/* پاپ‌آپ موفقیت سبز */
+.admin-action-popup.popup-success {
+  background: #f0fdf4;
+  border-color: #86efac;
+  box-shadow: 0 15px 30px -5px rgba(22, 101, 52, 0.18), 0 4px 8px rgba(22, 101, 52, 0.08);
+}
+
+.admin-action-popup.popup-success .popup-title {
+  color: #15803d;
+  font-weight: 800;
+  font-size: 1.02rem;
+}
+
+.admin-action-popup.popup-success .popup-message {
+  color: #166534;
+  font-size: 0.88rem;
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* پاپ‌آپ خطای قرمز */
+.admin-action-popup.popup-error {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  box-shadow: 0 15px 30px -5px rgba(185, 28, 28, 0.18), 0 4px 8px rgba(185, 28, 28, 0.08);
+}
+
+.admin-action-popup.popup-error .popup-title {
+  color: #b91c1c;
+  font-weight: 800;
+  font-size: 1.02rem;
+}
+
+.admin-action-popup.popup-error .popup-message {
+  color: #991b1b;
+  font-size: 0.88rem;
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* پاپ‌آپ اطلاعات */
+.admin-action-popup.popup-info {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.admin-action-popup.popup-info .popup-title {
+  color: #0369a1;
+  font-weight: 800;
+  font-size: 0.98rem;
+}
+
+.admin-action-popup.popup-info .popup-message {
+  color: #075985;
+  font-size: 0.88rem;
+  margin-top: 3px;
+}
+
+.popup-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+.popup-icon-badge.badge-success {
+  background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  box-shadow: 0 4px 10px rgba(34, 197, 94, 0.35);
+}
+
+.popup-icon-badge.badge-error {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
+}
+
+.popup-icon-badge.badge-info {
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+  box-shadow: 0 4px 10px rgba(56, 189, 248, 0.35);
+}
+
+.popup-text-content {
+  flex: 1;
+}
+
+.btn-popup-dismiss {
+  background: transparent;
+  border: none;
+  font-size: 1.35rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.btn-popup-dismiss:hover {
+  color: #334155;
+}
+
 
 
